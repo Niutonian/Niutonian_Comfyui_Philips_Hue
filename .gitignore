@@ -1,0 +1,4 @@
+__pycache__/
+*.py[cod]
+hue_config.json
+.DS_Store
