@@ -1,4 +1,4 @@
-"""Niutonan ComfyUI Hue nodes.
+"""Niutonan ComfyUI Philips Hue nodes.
 
 Extracts edge colors from generated images and sends the averaged edge color
 to a Philips Hue bridge using the local Hue v1 API.
@@ -190,7 +190,7 @@ def register_hue_user(bridge_ip: str) -> tuple[str | None, str | None]:
 
     try:
         url = f"http://{bridge_ip}/api"
-        data = json.dumps({"devicetype": "niutonan_comfyui_hue#comfyui"}).encode("utf-8")
+        data = json.dumps({"devicetype": "Niutonan_Comfyui_Philips_Hue#comfyui"}).encode("utf-8")
         req = urllib.request.Request(url, data=data, method="POST")
         req.add_header("Content-Type", "application/json")
         response = urllib.request.urlopen(req, timeout=10)
@@ -503,7 +503,7 @@ def rgb_to_hue_command(
     return command
 
 
-class Niutonan_Comfyui_Hue:
+class Niutonan_Comfyui_Philips_Hue:
     """Average image-edge colors into a virtual LED bar and push to Hue."""
 
     @classmethod
@@ -544,7 +544,7 @@ class Niutonan_Comfyui_Hue:
     RETURN_TYPES = ("IMAGE", "STRING", "STRING")
     RETURN_NAMES = ("image", "edge_bar_json", "average_rgb")
     FUNCTION = "execute"
-    CATEGORY = "Niutonan/Hue"
+    CATEGORY = "Niutonan/Philips Hue"
     OUTPUT_NODE = True
 
     def execute(
@@ -631,7 +631,7 @@ class Niutonan_Comfyui_Hue:
         return (image, bar_json, rgb_text)
 
 
-class Niutonan_Comfyui_Hue_Simple:
+class Niutonan_Comfyui_Philips_Hue_Simple:
     """Simplified edge-color Hue node with opinionated defaults."""
 
     @classmethod
@@ -654,7 +654,7 @@ class Niutonan_Comfyui_Hue_Simple:
     RETURN_TYPES = ("IMAGE", "STRING", "STRING")
     RETURN_NAMES = ("image", "edge_bar_json", "average_rgb")
     FUNCTION = "execute"
-    CATEGORY = "Niutonan/Hue"
+    CATEGORY = "Niutonan/Philips Hue"
     OUTPUT_NODE = True
 
     def execute(
@@ -726,8 +726,8 @@ class Niutonan_Comfyui_Hue_Simple:
         return (image, bar_json, rgb_text)
 
 
-class Niutonan_Comfyui_Hue_Setup:
-    """Register and inspect Hue bridge access for Niutonan_Comfyui_Hue."""
+class Niutonan_Comfyui_Philips_Hue_Setup:
+    """Register and inspect Hue bridge access for Niutonan_Comfyui_Philips_Hue."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -741,7 +741,7 @@ class Niutonan_Comfyui_Hue_Setup:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("result",)
     FUNCTION = "execute"
-    CATEGORY = "Niutonan/Hue"
+    CATEGORY = "Niutonan/Philips Hue"
     OUTPUT_NODE = True
 
     def execute(self, bridge_ip, action):
@@ -808,15 +808,27 @@ class Niutonan_Comfyui_Hue_Setup:
 
 
 NODE_CLASS_MAPPINGS = {
-    "Niutonan_Comfyui_Hue": Niutonan_Comfyui_Hue,
-    "Niutonan_Comfyui_Hue_Simple": Niutonan_Comfyui_Hue_Simple,
-    "Niutonan_Comfyui_Hue_Setup": Niutonan_Comfyui_Hue_Setup,
+    "Niutonan_Comfyui_Philips_Hue": Niutonan_Comfyui_Philips_Hue,
+    "Niutonan_Comfyui_Philips_Hue_Simple": Niutonan_Comfyui_Philips_Hue_Simple,
+    "Niutonan_Comfyui_Philips_Hue_Setup": Niutonan_Comfyui_Philips_Hue_Setup,
+    "Niutonan_Comfyui_Hue": Niutonan_Comfyui_Philips_Hue,
+    "Niutonan_Comfyui_Hue_Simple": Niutonan_Comfyui_Philips_Hue_Simple,
+    "Niutonan_Comfyui_Hue_Setup": Niutonan_Comfyui_Philips_Hue_Setup,
+    "Niutonian_comfyui_philips_hue": Niutonan_Comfyui_Philips_Hue,
+    "Niutonian_comfyui_philips_hue_Simple": Niutonan_Comfyui_Philips_Hue_Simple,
+    "Niutonian_comfyui_philips_hue_Setup": Niutonan_Comfyui_Philips_Hue_Setup,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
+    "Niutonan_Comfyui_Philips_Hue": "Niutonan: ComfyUI Hue Edge Bar",
+    "Niutonan_Comfyui_Philips_Hue_Simple": "Niutonan: ComfyUI Hue Edge Bar simple",
+    "Niutonan_Comfyui_Philips_Hue_Setup": "Niutonan: Hue Setup",
     "Niutonan_Comfyui_Hue": "Niutonan: ComfyUI Hue Edge Bar",
     "Niutonan_Comfyui_Hue_Simple": "Niutonan: ComfyUI Hue Edge Bar simple",
     "Niutonan_Comfyui_Hue_Setup": "Niutonan: Hue Setup",
+    "Niutonian_comfyui_philips_hue": "Niutonan: ComfyUI Hue Edge Bar",
+    "Niutonian_comfyui_philips_hue_Simple": "Niutonan: ComfyUI Hue Edge Bar simple",
+    "Niutonian_comfyui_philips_hue_Setup": "Niutonan: Hue Setup",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

@@ -1,4 +1,4 @@
-# Niutonan_Comfyui_Hue
+# Niutonan_Comfyui_Philips_Hue
 
 ComfyUI custom nodes that sample the edge colors of generated images and send
 matching colors to Philips Hue lights or Hue light strips.
@@ -72,13 +72,13 @@ Advanced node with additional controls:
 Copy this folder into your ComfyUI custom nodes directory:
 
 ```text
-ComfyUI/custom_nodes/Niutonan_Comfyui_Hue
+ComfyUI/custom_nodes/Niutonan_Comfyui_Philips_Hue
 ```
 
 For ComfyUI portable on Windows, that often looks like:
 
 ```text
-ComfyUI_windows_portable/ComfyUI/custom_nodes/Niutonan_Comfyui_Hue
+ComfyUI_windows_portable/ComfyUI/custom_nodes/Niutonan_Comfyui_Philips_Hue
 ```
 
 Restart ComfyUI after copying the folder.
@@ -130,7 +130,7 @@ Replace `192.168.0.57` with your bridge IP.
 If registration succeeds, the node saves an API key in:
 
 ```text
-Niutonan_Comfyui_Hue/hue_config.json
+Niutonan_Comfyui_Philips_Hue/hue_config.json
 ```
 
 Do not upload `hue_config.json` to GitHub. It is ignored by this repository's
