@@ -1,5 +1,7 @@
 # Niutonian_Comfyui_Philips_Hue
 
+![Niutonian ComfyUI Philips Hue](assets/image_01.jpg)
+
 ComfyUI custom nodes that sample the edge colors of generated images and send
 matching colors to Philips Hue lights or Hue light strips.
 
@@ -9,8 +11,9 @@ lights directly from a ComfyUI workflow.
 It is easy: generate an image, let the node read the image edges, and have your
 lights match the mood of the result.
 
-The package includes a full advanced node, a simpler everyday node, and a Hue
-setup node for bridge registration and light discovery.
+The package includes a full advanced node, a simpler everyday node, a manual
+color picker node, and a Hue setup node for bridge registration and light
+discovery.
 
 ## Nodes
 
@@ -27,6 +30,30 @@ Actions:
 - `list_lights`: lists numeric Hue light IDs.
 - `test_flash`: flashes all lights on the selected bridge.
 
+`list_lights` also prints the detected light type and capabilities, such as
+`color_xy`, `hue_sat`, `white_temperature`, or `brightness`.
+
+### Niutonian: Philips Hue Color Picker
+
+Manual color control for Hue lights.
+
+Inputs:
+
+- `bridge_ip`: Hue bridge IP.
+- `api_key`: optional. Leave blank after setup.
+- `light_id`: Hue light ID, `all`, or `group:<id>`.
+- `mode`: `send`, `preview_only`, or `turn_off`.
+- `color_hex`: hex color, for example `#ff8800`.
+- `color_source`: use `hex` or `rgb_sliders`.
+- `red`, `green`, `blue`: RGB sliders when `color_source = rgb_sliders`.
+- `brightness`: Hue brightness from `1` to `254`.
+- `transitiontime`: fade time in 1/10 second units.
+- `light_mode`: `auto`, `color_xy`, `hue_sat`, `white_temperature`, or
+  `brightness_only`.
+
+Use this node when you want direct manual light control instead of sampling an
+image.
+
 ### Niutonian: ComfyUI Hue Edge Bar simple
 
 Recommended node for normal use.
@@ -41,6 +68,7 @@ Inputs:
 - `brightness`: Hue brightness from `1` to `254`.
 - `edge_width`: how many pixels from the image border to sample.
 - `transitiontime`: fade time in 1/10 second units. `6` means 0.6 seconds.
+- `light_mode`: use `auto` for most lights.
 
 The simple node uses good defaults internally:
 
@@ -57,6 +85,8 @@ Advanced node with additional controls:
 - `color_api`: `xy` or `hue_sat`.
 - `color_pick_mode`: `average`, `weighted_average`, `dominant`, `brightest`.
 - `brightness_mode`: `fixed`, `from_image`, `from_image_clamped`.
+- `light_mode`: `auto`, `color_xy`, `hue_sat`, `white_temperature`,
+  `brightness_only`.
 - `crop_percent`
 - `ignore_dark_below`
 - `ignore_bright_above`
@@ -148,9 +178,9 @@ action = list_lights
 The output will include light IDs:
 
 ```text
-1: Hue lightstrip plus [ON]
-2: Desk lamp [OFF]
-3: Hue play bar [ON]
+1: Hue lightstrip plus [ON] - Extended color light - color_xy, hue_sat, white_temperature, brightness
+2: Desk lamp [OFF] - Dimmable light - brightness
+3: Hue ambiance bulb [ON] - Color temperature light - white_temperature, brightness
 ```
 
 Write down the numeric ID for the light or strip you want to control.
@@ -217,6 +247,20 @@ Controls Hue group ID `3`.
 To find group IDs, use the Hue app or the Hue API. The setup node currently
 lists lights, not groups.
 
+## Supported Hue Light Types
+
+The nodes are not limited to Hue LED strips.
+
+- Color lights and light strips: use `xy` color by default.
+- Older color lights: can use `hue_sat`.
+- White ambiance lights: use `white_temperature`.
+- Dimmable-only lights: use `brightness_only`.
+
+Set `light_mode = auto` unless you need to force a specific command type. In
+auto mode, the node inspects the selected light and chooses the best supported
+Hue command. For `all` and `group:<id>`, auto mode assumes color-capable lights
+because the Hue v1 group endpoint does not expose one specific light's state.
+
 ## Recommended Settings
 
 For most users:
@@ -236,6 +280,9 @@ use the advanced node with `ignore_dark_below`.
 
 If colors feel too gray, use the advanced node and increase `vibrance` or
 `saturation_boost`.
+
+For white ambiance or dimmable-only lights, set `light_mode = auto` or choose
+`white_temperature` / `brightness_only` directly.
 
 ## How Color Output Works
 

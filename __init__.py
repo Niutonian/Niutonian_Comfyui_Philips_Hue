@@ -230,6 +230,26 @@ def get_hue_lights(bridge_ip: str, api_key: str) -> dict[str, Any]:
         return {}
 
 
+def get_hue_light(bridge_ip: str, api_key: str, light_id: str) -> dict[str, Any]:
+    bridge_ip, error = resolve_bridge_ip(bridge_ip)
+    if not bridge_ip:
+        print(f"[Niutonian Hue] {error}")
+        return {}
+
+    target = str(light_id).strip()
+    if target.lower() == "all" or target.lower().startswith("group:"):
+        return {}
+
+    try:
+        url = f"http://{bridge_ip}/api/{api_key}/lights/{target}"
+        response = urllib.request.urlopen(urllib.request.Request(url), timeout=5)
+        result = json.loads(response.read().decode("utf-8"))
+        return result if isinstance(result, dict) else {}
+    except Exception as exc:
+        print(f"[Niutonian Hue] Failed to inspect light {target}: {exc}")
+        return {}
+
+
 def send_hue_command(bridge_ip: str, api_key: str, light_id: str, command: dict[str, Any]) -> bool:
     bridge_ip, error = resolve_bridge_ip(bridge_ip)
     if not bridge_ip:
@@ -503,6 +523,96 @@ def rgb_to_hue_command(
     return command
 
 
+def rgb_to_mired(rgb: tuple[int, int, int]) -> int:
+    r, _, b = rgb
+    warmth = max(0.0, min(1.0, ((float(r) - float(b)) + 255.0) / 510.0))
+    return int(round(153 + warmth * (500 - 153)))
+
+
+def rgb_to_white_temperature_command(
+    rgb: tuple[int, int, int],
+    brightness: int,
+    transitiontime: int = 4,
+) -> dict[str, Any]:
+    command: dict[str, Any] = {"on": True, "bri": int(brightness), "ct": rgb_to_mired(rgb)}
+    transitiontime = max(0, min(int(transitiontime), 6000))
+    if transitiontime > 0:
+        command["transitiontime"] = transitiontime
+    return command
+
+
+def brightness_only_command(brightness: int, transitiontime: int = 4) -> dict[str, Any]:
+    command: dict[str, Any] = {"on": True, "bri": int(brightness)}
+    transitiontime = max(0, min(int(transitiontime), 6000))
+    if transitiontime > 0:
+        command["transitiontime"] = transitiontime
+    return command
+
+
+def detect_light_mode(bridge_ip: str, api_key: str, light_id: str, preferred_color_api: str) -> str:
+    target = str(light_id).strip().lower()
+    if target == "all" or target.startswith("group:"):
+        return "hue_sat" if preferred_color_api == "hue_sat" else "color_xy"
+
+    light = get_hue_light(bridge_ip, api_key, light_id)
+    state = light.get("state", {}) if light else {}
+    if "xy" in state:
+        return "color_xy"
+    if "hue" in state and "sat" in state:
+        return "hue_sat"
+    if "ct" in state:
+        return "white_temperature"
+    if "bri" in state:
+        return "brightness_only"
+    return "hue_sat" if preferred_color_api == "hue_sat" else "color_xy"
+
+
+def build_hue_color_command(
+    bridge_ip: str,
+    api_key: str,
+    light_id: str,
+    rgb: tuple[int, int, int],
+    brightness: int,
+    color_api: str = "xy",
+    light_mode: str = "auto",
+    transitiontime: int = 4,
+) -> tuple[dict[str, Any], str]:
+    brightness = max(1, min(int(brightness), 254))
+    selected_mode = light_mode
+    if selected_mode == "auto":
+        selected_mode = detect_light_mode(bridge_ip, api_key, light_id, color_api)
+
+    if selected_mode == "brightness_only":
+        return brightness_only_command(brightness, transitiontime), selected_mode
+    if selected_mode == "white_temperature":
+        return rgb_to_white_temperature_command(rgb, brightness, transitiontime), selected_mode
+    if selected_mode == "hue_sat":
+        return rgb_to_hue_command(rgb, brightness, "hue_sat", transitiontime), selected_mode
+    return rgb_to_hue_command(rgb, brightness, "xy", transitiontime), "color_xy"
+
+
+def parse_hex_color(color_hex: str) -> tuple[int, int, int] | None:
+    value = str(color_hex or "").strip()
+    if value.startswith("#"):
+        value = value[1:]
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
+    if len(value) != 6:
+        return None
+    try:
+        return int(value[0:2], 16), int(value[2:4], 16), int(value[4:6], 16)
+    except ValueError:
+        return None
+
+
+def clamp_rgb(r: int, g: int, b: int) -> tuple[int, int, int]:
+    return (
+        max(0, min(int(r), 255)),
+        max(0, min(int(g), 255)),
+        max(0, min(int(b), 255)),
+    )
+
+
 class Niutonian_Comfyui_Philips_Hue:
     """Average image-edge colors into a virtual LED bar and push to Hue."""
 
@@ -519,6 +629,7 @@ class Niutonian_Comfyui_Philips_Hue:
             "optional": {
                 "color_pick_mode": (["average", "weighted_average", "dominant", "brightest"], {"default": "average"}),
                 "color_api": (["xy", "hue_sat"], {"default": "xy"}),
+                "light_mode": (["auto", "color_xy", "hue_sat", "white_temperature", "brightness_only"], {"default": "auto"}),
                 "brightness_mode": (["fixed", "from_image", "from_image_clamped"], {"default": "fixed"}),
                 "led_count": ("INT", {"default": 24, "min": 1, "max": 300}),
                 "edge_width": ("INT", {"default": 32, "min": 1, "max": 512}),
@@ -556,6 +667,7 @@ class Niutonian_Comfyui_Philips_Hue:
         mode,
         color_pick_mode="average",
         color_api="xy",
+        light_mode="auto",
         brightness_mode="fixed",
         led_count=24,
         edge_width=32,
@@ -609,7 +721,16 @@ class Niutonian_Comfyui_Philips_Hue:
             if not resolved_key:
                 print("[Niutonian Hue] No API key. Use Niutonian Hue Setup to register first.")
             else:
-                command = rgb_to_hue_command(rgb, final_brightness, color_api, transitiontime)
+                command, selected_light_mode = build_hue_color_command(
+                    bridge_ip,
+                    resolved_key,
+                    light_id,
+                    rgb,
+                    final_brightness,
+                    color_api=color_api,
+                    light_mode=light_mode,
+                    transitiontime=transitiontime,
+                )
                 send_hue_command(bridge_ip, resolved_key, light_id, command)
 
         bar_json = json.dumps(
@@ -621,12 +742,13 @@ class Niutonian_Comfyui_Philips_Hue:
                 "brightness": final_brightness,
                 "color_pick_mode": color_pick_mode,
                 "color_api": color_api,
+                "light_mode": light_mode,
             }
         )
         rgb_text = f"{rgb[0]},{rgb[1]},{rgb[2]}"
         print(
             f"[Niutonian Hue] Edge RGB: {rgb_text}, brightness={final_brightness}, "
-            f"mode={color_pick_mode}, api={color_api}, leds={len(led_bar)}"
+            f"mode={color_pick_mode}, api={color_api}, light_mode={light_mode}, leds={len(led_bar)}"
         )
         return (image, bar_json, rgb_text)
 
@@ -648,6 +770,7 @@ class Niutonian_Comfyui_Philips_Hue_Simple:
                 "brightness": ("INT", {"default": 180, "min": 1, "max": 254}),
                 "edge_width": ("INT", {"default": 32, "min": 1, "max": 512}),
                 "transitiontime": ("INT", {"default": 6, "min": 0, "max": 6000}),
+                "light_mode": (["auto", "color_xy", "hue_sat", "white_temperature", "brightness_only"], {"default": "auto"}),
             },
         }
 
@@ -667,6 +790,7 @@ class Niutonian_Comfyui_Philips_Hue_Simple:
         brightness=180,
         edge_width=32,
         transitiontime=6,
+        light_mode="auto",
     ):
         img_np = tensor_to_rgb_uint8(image, batch_index=0)
         led_bar = make_led_bar(
@@ -706,7 +830,16 @@ class Niutonian_Comfyui_Philips_Hue_Simple:
             if not resolved_key:
                 print("[Niutonian Hue Simple] No API key. Use Niutonian Hue Setup to register first.")
             else:
-                command = rgb_to_hue_command(rgb, brightness, color_api="xy", transitiontime=transitiontime)
+                command, selected_light_mode = build_hue_color_command(
+                    bridge_ip,
+                    resolved_key,
+                    light_id,
+                    rgb,
+                    brightness,
+                    color_api="xy",
+                    light_mode=light_mode,
+                    transitiontime=transitiontime,
+                )
                 send_hue_command(bridge_ip, resolved_key, light_id, command)
 
         bar_json = json.dumps(
@@ -718,12 +851,98 @@ class Niutonian_Comfyui_Philips_Hue_Simple:
                 "brightness": int(brightness),
                 "color_pick_mode": "dominant",
                 "color_api": "xy",
+                "light_mode": light_mode,
                 "simple": True,
             }
         )
         rgb_text = f"{rgb[0]},{rgb[1]},{rgb[2]}"
-        print(f"[Niutonian Hue Simple] Edge RGB: {rgb_text}, brightness={brightness}, leds={len(led_bar)}")
+        print(
+            f"[Niutonian Hue Simple] Edge RGB: {rgb_text}, brightness={brightness}, "
+            f"light_mode={light_mode}, leds={len(led_bar)}"
+        )
         return (image, bar_json, rgb_text)
+
+
+class Niutonian_Comfyui_Philips_Hue_Color:
+    """Manual color picker for Philips Hue lights."""
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        return {
+            "required": {
+                "bridge_ip": ("STRING", {"default": "192.168.0.57", "multiline": False}),
+                "api_key": ("STRING", {"default": "", "multiline": False}),
+                "light_id": ("STRING", {"default": "1", "multiline": False}),
+                "mode": (["send", "preview_only", "turn_off"], {"default": "send"}),
+                "color_hex": ("STRING", {"default": "#ff8800", "multiline": False}),
+            },
+            "optional": {
+                "color_source": (["hex", "rgb_sliders"], {"default": "hex"}),
+                "red": ("INT", {"default": 255, "min": 0, "max": 255}),
+                "green": ("INT", {"default": 136, "min": 0, "max": 255}),
+                "blue": ("INT", {"default": 0, "min": 0, "max": 255}),
+                "brightness": ("INT", {"default": 180, "min": 1, "max": 254}),
+                "transitiontime": ("INT", {"default": 6, "min": 0, "max": 6000}),
+                "light_mode": (["auto", "color_xy", "hue_sat", "white_temperature", "brightness_only"], {"default": "auto"}),
+            },
+        }
+
+    RETURN_TYPES = ("STRING", "STRING")
+    RETURN_NAMES = ("color_hex", "rgb")
+    FUNCTION = "execute"
+    CATEGORY = "Niutonian/Philips Hue"
+    OUTPUT_NODE = True
+
+    def execute(
+        self,
+        bridge_ip,
+        api_key,
+        light_id,
+        mode,
+        color_hex,
+        color_source="hex",
+        red=255,
+        green=136,
+        blue=0,
+        brightness=180,
+        transitiontime=6,
+        light_mode="auto",
+    ):
+        parsed_rgb = parse_hex_color(color_hex)
+        if color_source == "rgb_sliders" or parsed_rgb is None:
+            rgb = clamp_rgb(red, green, blue)
+        else:
+            rgb = parsed_rgb
+
+        normalized_hex = f"#{rgb[0]:02x}{rgb[1]:02x}{rgb[2]:02x}"
+
+        if mode == "turn_off":
+            resolved_key = api_key or get_hue_api_key(bridge_ip)
+            if resolved_key:
+                send_hue_command(bridge_ip, resolved_key, light_id, {"on": False})
+        elif mode == "send":
+            resolved_key = api_key or get_hue_api_key(bridge_ip)
+            if not resolved_key:
+                print("[Niutonian Hue Color] No API key. Use Niutonian Hue Setup to register first.")
+            else:
+                command, selected_light_mode = build_hue_color_command(
+                    bridge_ip,
+                    resolved_key,
+                    light_id,
+                    rgb,
+                    brightness,
+                    color_api="xy",
+                    light_mode=light_mode,
+                    transitiontime=transitiontime,
+                )
+                send_hue_command(bridge_ip, resolved_key, light_id, command)
+                print(
+                    f"[Niutonian Hue Color] Sent {normalized_hex} to {light_id} "
+                    f"with light_mode={selected_light_mode}"
+                )
+
+        rgb_text = f"{rgb[0]},{rgb[1]},{rgb[2]}"
+        return (normalized_hex, rgb_text)
 
 
 class Niutonian_Comfyui_Philips_Hue_Setup:
@@ -788,7 +1007,19 @@ class Niutonian_Comfyui_Philips_Hue_Setup:
                 for light_id, light in lights.items():
                     state = light.get("state", {})
                     on_off = "ON" if state.get("on") else "OFF"
-                    lines.append(f"{light_id}: {light.get('name', 'Unknown')} [{on_off}]")
+                    capabilities = []
+                    if "xy" in state:
+                        capabilities.append("color_xy")
+                    if "hue" in state and "sat" in state:
+                        capabilities.append("hue_sat")
+                    if "ct" in state:
+                        capabilities.append("white_temperature")
+                    if "bri" in state:
+                        capabilities.append("brightness")
+                    capability_text = ", ".join(capabilities) if capabilities else "unknown"
+                    light_type = light.get("type", "Unknown type")
+                    name = light.get("name", "Unknown")
+                    lines.append(f"{light_id}: {name} [{on_off}] - {light_type} - {capability_text}")
                 result = "\n".join(lines) if lines else "No lights found."
         elif action == "test_flash":
             resolved_ip, resolve_error = resolve_bridge_ip(bridge_ip)
@@ -810,36 +1041,46 @@ class Niutonian_Comfyui_Philips_Hue_Setup:
 NODE_CLASS_MAPPINGS = {
     "Niutonian_Comfyui_Philips_Hue": Niutonian_Comfyui_Philips_Hue,
     "Niutonian_Comfyui_Philips_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonian_Comfyui_Philips_Hue_Color": Niutonian_Comfyui_Philips_Hue_Color,
     "Niutonian_Comfyui_Philips_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
     "Niutonian_Comfyui_Hue": Niutonian_Comfyui_Philips_Hue,
     "Niutonian_Comfyui_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonian_Comfyui_Hue_Color": Niutonian_Comfyui_Philips_Hue_Color,
     "Niutonian_Comfyui_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
     "Niutonian_comfyui_philips_hue": Niutonian_Comfyui_Philips_Hue,
     "Niutonian_comfyui_philips_hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonian_comfyui_philips_hue_Color": Niutonian_Comfyui_Philips_Hue_Color,
     "Niutonian_comfyui_philips_hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
     "Niutonan_Comfyui_Philips_Hue": Niutonian_Comfyui_Philips_Hue,
     "Niutonan_Comfyui_Philips_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonan_Comfyui_Philips_Hue_Color": Niutonian_Comfyui_Philips_Hue_Color,
     "Niutonan_Comfyui_Philips_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
     "Niutonan_Comfyui_Hue": Niutonian_Comfyui_Philips_Hue,
     "Niutonan_Comfyui_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonan_Comfyui_Hue_Color": Niutonian_Comfyui_Philips_Hue_Color,
     "Niutonan_Comfyui_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Niutonian_Comfyui_Philips_Hue": "Niutonian: ComfyUI Hue Edge Bar",
     "Niutonian_Comfyui_Philips_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonian_Comfyui_Philips_Hue_Color": "Niutonian: Philips Hue Color Picker",
     "Niutonian_Comfyui_Philips_Hue_Setup": "Niutonian: Hue Setup",
     "Niutonian_Comfyui_Hue": "Niutonian: ComfyUI Hue Edge Bar",
     "Niutonian_Comfyui_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonian_Comfyui_Hue_Color": "Niutonian: Philips Hue Color Picker",
     "Niutonian_Comfyui_Hue_Setup": "Niutonian: Hue Setup",
     "Niutonian_comfyui_philips_hue": "Niutonian: ComfyUI Hue Edge Bar",
     "Niutonian_comfyui_philips_hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonian_comfyui_philips_hue_Color": "Niutonian: Philips Hue Color Picker",
     "Niutonian_comfyui_philips_hue_Setup": "Niutonian: Hue Setup",
     "Niutonan_Comfyui_Philips_Hue": "Niutonian: ComfyUI Hue Edge Bar",
     "Niutonan_Comfyui_Philips_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonan_Comfyui_Philips_Hue_Color": "Niutonian: Philips Hue Color Picker",
     "Niutonan_Comfyui_Philips_Hue_Setup": "Niutonian: Hue Setup",
     "Niutonan_Comfyui_Hue": "Niutonian: ComfyUI Hue Edge Bar",
     "Niutonan_Comfyui_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonan_Comfyui_Hue_Color": "Niutonian: Philips Hue Color Picker",
     "Niutonan_Comfyui_Hue_Setup": "Niutonian: Hue Setup",
 }
 
