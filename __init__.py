@@ -1,4 +1,4 @@
-"""Niutonan ComfyUI Philips Hue nodes.
+"""Niutonian ComfyUI Philips Hue nodes.
 
 Extracts edge colors from generated images and sends the averaged edge color
 to a Philips Hue bridge using the local Hue v1 API.
@@ -29,7 +29,7 @@ def load_hue_config() -> dict[str, Any]:
             with open(HUE_CONFIG_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception as exc:
-            print(f"[Niutonan Hue] Failed to load config: {exc}")
+            print(f"[Niutonian Hue] Failed to load config: {exc}")
     return {}
 
 
@@ -39,7 +39,7 @@ def save_hue_config(config: dict[str, Any]) -> bool:
             json.dump(config, f, indent=2)
         return True
     except Exception as exc:
-        print(f"[Niutonan Hue] Failed to save config: {exc}")
+        print(f"[Niutonian Hue] Failed to save config: {exc}")
         return False
 
 
@@ -82,7 +82,7 @@ def discover_hue_bridges_cloud(timeout: float = 2.0) -> list[dict[str, str]]:
                 bridges.append({"ip": ip, "id": item.get("id", ""), "source": "meethue"})
         return bridges
     except Exception as exc:
-        print(f"[Niutonan Hue] Cloud discovery failed: {exc}")
+        print(f"[Niutonian Hue] Cloud discovery failed: {exc}")
         return []
 
 
@@ -114,7 +114,7 @@ def discover_hue_bridges_ssdp(timeout: float = 2.0) -> list[dict[str, str]]:
             if "hue" in text or "ipbridge" in text or "philips" in text:
                 bridges[addr[0]] = {"ip": addr[0], "id": "", "source": "ssdp"}
     except Exception as exc:
-        print(f"[Niutonan Hue] SSDP discovery failed: {exc}")
+        print(f"[Niutonian Hue] SSDP discovery failed: {exc}")
     finally:
         sock.close()
 
@@ -190,7 +190,7 @@ def register_hue_user(bridge_ip: str) -> tuple[str | None, str | None]:
 
     try:
         url = f"http://{bridge_ip}/api"
-        data = json.dumps({"devicetype": "Niutonan_Comfyui_Philips_Hue#comfyui"}).encode("utf-8")
+        data = json.dumps({"devicetype": "Niutonian_Comfyui_Philips_Hue#comfyui"}).encode("utf-8")
         req = urllib.request.Request(url, data=data, method="POST")
         req.add_header("Content-Type", "application/json")
         response = urllib.request.urlopen(req, timeout=10)
@@ -217,7 +217,7 @@ def register_hue_user(bridge_ip: str) -> tuple[str | None, str | None]:
 def get_hue_lights(bridge_ip: str, api_key: str) -> dict[str, Any]:
     bridge_ip, error = resolve_bridge_ip(bridge_ip)
     if not bridge_ip:
-        print(f"[Niutonan Hue] {error}")
+        print(f"[Niutonian Hue] {error}")
         return {}
 
     try:
@@ -226,14 +226,14 @@ def get_hue_lights(bridge_ip: str, api_key: str) -> dict[str, Any]:
         result = json.loads(response.read().decode("utf-8"))
         return result if isinstance(result, dict) else {}
     except Exception as exc:
-        print(f"[Niutonan Hue] Failed to list lights: {exc}")
+        print(f"[Niutonian Hue] Failed to list lights: {exc}")
         return {}
 
 
 def send_hue_command(bridge_ip: str, api_key: str, light_id: str, command: dict[str, Any]) -> bool:
     bridge_ip, error = resolve_bridge_ip(bridge_ip)
     if not bridge_ip:
-        print(f"[Niutonan Hue] {error}")
+        print(f"[Niutonian Hue] {error}")
         return False
 
     try:
@@ -251,10 +251,10 @@ def send_hue_command(bridge_ip: str, api_key: str, light_id: str, command: dict[
         req.add_header("Content-Type", "application/json")
         response = urllib.request.urlopen(req, timeout=5)
         result = json.loads(response.read().decode("utf-8"))
-        print(f"[Niutonan Hue] Hue response: {result}")
+        print(f"[Niutonian Hue] Hue response: {result}")
         return True
     except Exception as exc:
-        print(f"[Niutonan Hue] Hue command failed: {exc}")
+        print(f"[Niutonian Hue] Hue command failed: {exc}")
         return False
 
 
@@ -503,7 +503,7 @@ def rgb_to_hue_command(
     return command
 
 
-class Niutonan_Comfyui_Philips_Hue:
+class Niutonian_Comfyui_Philips_Hue:
     """Average image-edge colors into a virtual LED bar and push to Hue."""
 
     @classmethod
@@ -544,7 +544,7 @@ class Niutonan_Comfyui_Philips_Hue:
     RETURN_TYPES = ("IMAGE", "STRING", "STRING")
     RETURN_NAMES = ("image", "edge_bar_json", "average_rgb")
     FUNCTION = "execute"
-    CATEGORY = "Niutonan/Philips Hue"
+    CATEGORY = "Niutonian/Philips Hue"
     OUTPUT_NODE = True
 
     def execute(
@@ -607,7 +607,7 @@ class Niutonan_Comfyui_Philips_Hue:
         elif mode == "send_average":
             resolved_key = api_key or get_hue_api_key(bridge_ip)
             if not resolved_key:
-                print("[Niutonan Hue] No API key. Use Niutonan Hue Setup to register first.")
+                print("[Niutonian Hue] No API key. Use Niutonian Hue Setup to register first.")
             else:
                 command = rgb_to_hue_command(rgb, final_brightness, color_api, transitiontime)
                 send_hue_command(bridge_ip, resolved_key, light_id, command)
@@ -625,13 +625,13 @@ class Niutonan_Comfyui_Philips_Hue:
         )
         rgb_text = f"{rgb[0]},{rgb[1]},{rgb[2]}"
         print(
-            f"[Niutonan Hue] Edge RGB: {rgb_text}, brightness={final_brightness}, "
+            f"[Niutonian Hue] Edge RGB: {rgb_text}, brightness={final_brightness}, "
             f"mode={color_pick_mode}, api={color_api}, leds={len(led_bar)}"
         )
         return (image, bar_json, rgb_text)
 
 
-class Niutonan_Comfyui_Philips_Hue_Simple:
+class Niutonian_Comfyui_Philips_Hue_Simple:
     """Simplified edge-color Hue node with opinionated defaults."""
 
     @classmethod
@@ -654,7 +654,7 @@ class Niutonan_Comfyui_Philips_Hue_Simple:
     RETURN_TYPES = ("IMAGE", "STRING", "STRING")
     RETURN_NAMES = ("image", "edge_bar_json", "average_rgb")
     FUNCTION = "execute"
-    CATEGORY = "Niutonan/Philips Hue"
+    CATEGORY = "Niutonian/Philips Hue"
     OUTPUT_NODE = True
 
     def execute(
@@ -704,7 +704,7 @@ class Niutonan_Comfyui_Philips_Hue_Simple:
         elif mode == "send":
             resolved_key = api_key or get_hue_api_key(bridge_ip)
             if not resolved_key:
-                print("[Niutonan Hue Simple] No API key. Use Niutonan Hue Setup to register first.")
+                print("[Niutonian Hue Simple] No API key. Use Niutonian Hue Setup to register first.")
             else:
                 command = rgb_to_hue_command(rgb, brightness, color_api="xy", transitiontime=transitiontime)
                 send_hue_command(bridge_ip, resolved_key, light_id, command)
@@ -722,12 +722,12 @@ class Niutonan_Comfyui_Philips_Hue_Simple:
             }
         )
         rgb_text = f"{rgb[0]},{rgb[1]},{rgb[2]}"
-        print(f"[Niutonan Hue Simple] Edge RGB: {rgb_text}, brightness={brightness}, leds={len(led_bar)}")
+        print(f"[Niutonian Hue Simple] Edge RGB: {rgb_text}, brightness={brightness}, leds={len(led_bar)}")
         return (image, bar_json, rgb_text)
 
 
-class Niutonan_Comfyui_Philips_Hue_Setup:
-    """Register and inspect Hue bridge access for Niutonan_Comfyui_Philips_Hue."""
+class Niutonian_Comfyui_Philips_Hue_Setup:
+    """Register and inspect Hue bridge access for Niutonian_Comfyui_Philips_Hue."""
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -741,7 +741,7 @@ class Niutonan_Comfyui_Philips_Hue_Setup:
     RETURN_TYPES = ("STRING",)
     RETURN_NAMES = ("result",)
     FUNCTION = "execute"
-    CATEGORY = "Niutonan/Philips Hue"
+    CATEGORY = "Niutonian/Philips Hue"
     OUTPUT_NODE = True
 
     def execute(self, bridge_ip, action):
@@ -765,7 +765,7 @@ class Niutonan_Comfyui_Philips_Hue_Setup:
             resolved_ip, resolve_error = resolve_bridge_ip(bridge_ip)
             if not resolved_ip:
                 result = f"ERROR: {resolve_error}"
-                print(f"[Niutonan Hue Setup] {result}")
+                print(f"[Niutonian Hue Setup] {result}")
                 return (result,)
             api_key = get_hue_api_key(resolved_ip)
             if not api_key:
@@ -777,7 +777,7 @@ class Niutonan_Comfyui_Philips_Hue_Setup:
             resolved_ip, resolve_error = resolve_bridge_ip(bridge_ip)
             if not resolved_ip:
                 result = f"ERROR: {resolve_error}"
-                print(f"[Niutonan Hue Setup] {result}")
+                print(f"[Niutonian Hue Setup] {result}")
                 return (result,)
             api_key = get_hue_api_key(resolved_ip)
             if not api_key:
@@ -794,7 +794,7 @@ class Niutonan_Comfyui_Philips_Hue_Setup:
             resolved_ip, resolve_error = resolve_bridge_ip(bridge_ip)
             if not resolved_ip:
                 result = f"ERROR: {resolve_error}"
-                print(f"[Niutonan Hue Setup] {result}")
+                print(f"[Niutonian Hue Setup] {result}")
                 return (result,)
             api_key = get_hue_api_key(resolved_ip)
             if not api_key:
@@ -803,32 +803,44 @@ class Niutonan_Comfyui_Philips_Hue_Setup:
                 ok = send_hue_command(resolved_ip, api_key, "all", {"alert": "select"})
                 result = "Flashed all lights." if ok else "Hue test flash failed."
 
-        print(f"[Niutonan Hue Setup] {result}")
+        print(f"[Niutonian Hue Setup] {result}")
         return (result,)
 
 
 NODE_CLASS_MAPPINGS = {
-    "Niutonan_Comfyui_Philips_Hue": Niutonan_Comfyui_Philips_Hue,
-    "Niutonan_Comfyui_Philips_Hue_Simple": Niutonan_Comfyui_Philips_Hue_Simple,
-    "Niutonan_Comfyui_Philips_Hue_Setup": Niutonan_Comfyui_Philips_Hue_Setup,
-    "Niutonan_Comfyui_Hue": Niutonan_Comfyui_Philips_Hue,
-    "Niutonan_Comfyui_Hue_Simple": Niutonan_Comfyui_Philips_Hue_Simple,
-    "Niutonan_Comfyui_Hue_Setup": Niutonan_Comfyui_Philips_Hue_Setup,
-    "Niutonian_comfyui_philips_hue": Niutonan_Comfyui_Philips_Hue,
-    "Niutonian_comfyui_philips_hue_Simple": Niutonan_Comfyui_Philips_Hue_Simple,
-    "Niutonian_comfyui_philips_hue_Setup": Niutonan_Comfyui_Philips_Hue_Setup,
+    "Niutonian_Comfyui_Philips_Hue": Niutonian_Comfyui_Philips_Hue,
+    "Niutonian_Comfyui_Philips_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonian_Comfyui_Philips_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
+    "Niutonian_Comfyui_Hue": Niutonian_Comfyui_Philips_Hue,
+    "Niutonian_Comfyui_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonian_Comfyui_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
+    "Niutonian_comfyui_philips_hue": Niutonian_Comfyui_Philips_Hue,
+    "Niutonian_comfyui_philips_hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonian_comfyui_philips_hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
+    "Niutonan_Comfyui_Philips_Hue": Niutonian_Comfyui_Philips_Hue,
+    "Niutonan_Comfyui_Philips_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonan_Comfyui_Philips_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
+    "Niutonan_Comfyui_Hue": Niutonian_Comfyui_Philips_Hue,
+    "Niutonan_Comfyui_Hue_Simple": Niutonian_Comfyui_Philips_Hue_Simple,
+    "Niutonan_Comfyui_Hue_Setup": Niutonian_Comfyui_Philips_Hue_Setup,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "Niutonan_Comfyui_Philips_Hue": "Niutonan: ComfyUI Hue Edge Bar",
-    "Niutonan_Comfyui_Philips_Hue_Simple": "Niutonan: ComfyUI Hue Edge Bar simple",
-    "Niutonan_Comfyui_Philips_Hue_Setup": "Niutonan: Hue Setup",
-    "Niutonan_Comfyui_Hue": "Niutonan: ComfyUI Hue Edge Bar",
-    "Niutonan_Comfyui_Hue_Simple": "Niutonan: ComfyUI Hue Edge Bar simple",
-    "Niutonan_Comfyui_Hue_Setup": "Niutonan: Hue Setup",
-    "Niutonian_comfyui_philips_hue": "Niutonan: ComfyUI Hue Edge Bar",
-    "Niutonian_comfyui_philips_hue_Simple": "Niutonan: ComfyUI Hue Edge Bar simple",
-    "Niutonian_comfyui_philips_hue_Setup": "Niutonan: Hue Setup",
+    "Niutonian_Comfyui_Philips_Hue": "Niutonian: ComfyUI Hue Edge Bar",
+    "Niutonian_Comfyui_Philips_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonian_Comfyui_Philips_Hue_Setup": "Niutonian: Hue Setup",
+    "Niutonian_Comfyui_Hue": "Niutonian: ComfyUI Hue Edge Bar",
+    "Niutonian_Comfyui_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonian_Comfyui_Hue_Setup": "Niutonian: Hue Setup",
+    "Niutonian_comfyui_philips_hue": "Niutonian: ComfyUI Hue Edge Bar",
+    "Niutonian_comfyui_philips_hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonian_comfyui_philips_hue_Setup": "Niutonian: Hue Setup",
+    "Niutonan_Comfyui_Philips_Hue": "Niutonian: ComfyUI Hue Edge Bar",
+    "Niutonan_Comfyui_Philips_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonan_Comfyui_Philips_Hue_Setup": "Niutonian: Hue Setup",
+    "Niutonan_Comfyui_Hue": "Niutonian: ComfyUI Hue Edge Bar",
+    "Niutonan_Comfyui_Hue_Simple": "Niutonian: ComfyUI Hue Edge Bar simple",
+    "Niutonan_Comfyui_Hue_Setup": "Niutonian: Hue Setup",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]

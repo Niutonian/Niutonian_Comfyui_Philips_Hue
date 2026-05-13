@@ -1,4 +1,4 @@
-# Niutonan_Comfyui_Philips_Hue
+# Niutonian_Comfyui_Philips_Hue
 
 ComfyUI custom nodes that sample the edge colors of generated images and send
 matching colors to Philips Hue lights or Hue light strips.
@@ -14,7 +14,7 @@ setup node for bridge registration and light discovery.
 
 ## Nodes
 
-### Niutonan: Hue Setup
+### Niutonian: Hue Setup
 
 Use this node to find your Hue bridge, register an API key, list lights, and
 test the connection.
@@ -27,7 +27,7 @@ Actions:
 - `list_lights`: lists numeric Hue light IDs.
 - `test_flash`: flashes all lights on the selected bridge.
 
-### Niutonan: ComfyUI Hue Edge Bar simple
+### Niutonian: ComfyUI Hue Edge Bar simple
 
 Recommended node for normal use.
 
@@ -50,7 +50,7 @@ The simple node uses good defaults internally:
 - Slight crop to avoid hard image borders.
 - Mild vibrance and saturation shaping.
 
-### Niutonan: ComfyUI Hue Edge Bar
+### Niutonian: ComfyUI Hue Edge Bar
 
 Advanced node with additional controls:
 
@@ -72,13 +72,13 @@ Advanced node with additional controls:
 Copy this folder into your ComfyUI custom nodes directory:
 
 ```text
-ComfyUI/custom_nodes/Niutonan_Comfyui_Philips_Hue
+ComfyUI/custom_nodes/Niutonian_Comfyui_Philips_Hue
 ```
 
 For ComfyUI portable on Windows, that often looks like:
 
 ```text
-ComfyUI_windows_portable/ComfyUI/custom_nodes/Niutonan_Comfyui_Philips_Hue
+ComfyUI_windows_portable/ComfyUI/custom_nodes/Niutonian_Comfyui_Philips_Hue
 ```
 
 Restart ComfyUI after copying the folder.
@@ -92,7 +92,7 @@ No extra Python packages are required.
 Add the node:
 
 ```text
-Niutonan: Hue Setup
+Niutonian: Hue Setup
 ```
 
 Set:
@@ -118,7 +118,7 @@ room lights. Put that exact IP into `bridge_ip` for the next steps.
 
 Press the physical button on top of the Philips Hue Bridge.
 
-Then run `Niutonan: Hue Setup` with:
+Then run `Niutonian: Hue Setup` with:
 
 ```text
 bridge_ip = 192.168.0.57
@@ -130,7 +130,7 @@ Replace `192.168.0.57` with your bridge IP.
 If registration succeeds, the node saves an API key in:
 
 ```text
-Niutonan_Comfyui_Philips_Hue/hue_config.json
+Niutonian_Comfyui_Philips_Hue/hue_config.json
 ```
 
 Do not upload `hue_config.json` to GitHub. It is ignored by this repository's
@@ -138,7 +138,7 @@ Do not upload `hue_config.json` to GitHub. It is ignored by this repository's
 
 ### 3. List Your Hue Lights
 
-Run `Niutonan: Hue Setup` with:
+Run `Niutonian: Hue Setup` with:
 
 ```text
 bridge_ip = 192.168.0.57
@@ -171,7 +171,7 @@ Your Hue lights should flash briefly.
 Add:
 
 ```text
-Niutonan: ComfyUI Hue Edge Bar simple
+Niutonian: ComfyUI Hue Edge Bar simple
 ```
 
 Connect your generated image to the `image` input.
@@ -222,7 +222,7 @@ lists lights, not groups.
 For most users:
 
 ```text
-Node: Niutonan: ComfyUI Hue Edge Bar simple
+Node: Niutonian: ComfyUI Hue Edge Bar simple
 mode = send
 brightness = 160 to 210
 edge_width = 24 to 48
@@ -270,7 +270,7 @@ Press the physical Hue Bridge button and run `register_new` again within about
 Run:
 
 ```text
-Niutonan: Hue Setup
+Niutonian: Hue Setup
 action = register_new
 ```
 
@@ -290,7 +290,7 @@ Check:
 
 Try:
 
-- Use `Niutonan: ComfyUI Hue Edge Bar simple` first.
+- Use `Niutonian: ComfyUI Hue Edge Bar simple` first.
 - Increase `transitiontime` for smoother fades.
 - Try the advanced node with `color_pick_mode = weighted_average`.
 - Use `color_api = xy` for better Hue color matching.
