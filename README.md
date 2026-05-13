@@ -17,6 +17,8 @@ discovery.
 
 ## Nodes
 
+The package registers four public ComfyUI nodes.
+
 ### Niutonian: Hue Setup
 
 Use this node to find your Hue bridge, register an API key, list lights, and
